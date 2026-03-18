@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL文件大小计算器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #F1F5F9;
+            color: #1E293B;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1E40AF, #2563EB);
+            color: white;
+            padding: 28px 0;
+            text-align: center;
+            box-shadow: 0 2px 12px rgba(37, 99, 235, 0.3);
+        }
+        .header h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
+        .header p { font-size: 12px; opacity: 0.85; margin-top: 6px; }
+
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px 40px; }
+
+        /* 上传区域 */
+        .upload-section {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+        }
+
+        .upload-area {
+            border: 2px dashed #CBD5E1;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #F8FAFC;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #2563EB;
+            background: #EFF6FF;
+        }
+        .upload-area.has-file {
+            border-color: #16A34A;
+            background: #F0FDF4;
+        }
+        .upload-icon { font-size: 32px; margin-bottom: 10px; }
+        .upload-text { font-size: 13px; color: #64748B; }
+        .upload-text strong { color: #2563EB; }
+        .file-name {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #16A34A;
+            font-weight: 500;
+            word-break: break-all;
+        }
+        .file-hint { font-size: 11px; color: #94A3B8; margin-top: 8px; }
+
+        #fileInput { display: none; }
+
+        /* 操作栏 */
+        .action-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        .url-count {
+            font-size: 12px;
+            color: #64748B;
+            flex: 1;
+        }
+        .url-count span { color: #2563EB; font-weight: 600; }
+
+        .btn {
+            padding: 8px 22px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: #2563EB; color: white; }
+        .btn-primary:hover:not(:disabled) { background: #1D4ED8; }
+        .btn-secondary { background: #F1F5F9; color: #475569; border: 1px solid #E2E8F0; }
+        .btn-secondary:hover:not(:disabled) { background: #E2E8F0; }
+
+        /* 进度 */
+        .progress-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 32px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+            display: none;
+        }
+        .progress-section.show { display: block; }
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .progress-label { font-size: 12px; color: #475569; }
+        .progress-percent { font-size: 12px; font-weight: 600; color: #2563EB; }
+        .progress-bar {
+            height: 8px;
+            background: #E2E8F0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2563EB, #3B82F6);
+            border-radius: 4px;
+            transition: width 0.3s;
+            width: 0%;
+        }
+
+        /* 结果区域 */
+        .result-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            display: none;
+            overflow: hidden;
+        }
+        .result-section.show { display: block; }
+
+        /* 顶部合计横幅 */
+        .total-banner {
+            background: linear-gradient(135deg, #1E40AF, #2563EB);
+            color: white;
+            padding: 18px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .total-banner-left { }
+        .total-banner-label { font-size: 12px; opacity: 0.85; margin-bottom: 4px; }
+        .total-banner-value { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+        .btn-download {
+            padding: 8px 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.4);
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-download:hover { background: rgba(255,255,255,0.35); }
+
+        /* 统计卡片 */
+        .summary-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            padding: 24px 32px;
+            border-bottom: 1px solid #F1F5F9;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            background: #F8FAFC;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .stat-label { font-size: 11px; color: #64748B; }
+        .stat-total .stat-value { color: #1E293B; }
+        .stat-success .stat-value { color: #16A34A; }
+        .stat-fail .stat-value { color: #DC2626; }
+        .stat-size .stat-value { color: #2563EB; font-size: 15px; }
+
+        /* 表格 */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        thead th {
+            background: #F8FAFC;
+            padding: 10px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: #475569;
+            border-bottom: 2px solid #E2E8F0;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+        thead th:first-child { text-align: center; width: 60px; }
+        thead th:nth-child(3) { text-align: right; width: 120px; }
+        thead th:nth-child(4) { text-align: center; width: 110px; }
+        tbody tr { transition: background 0.15s; }
+        tbody tr:nth-child(odd) { background: #FFFFFF; }
+        tbody tr:nth-child(even) { background: #F8FAFC; }
+        tbody tr:hover { background: #EFF6FF; }
+        td {
+            padding: 9px 14px;
+            border-bottom: 1px solid #F1F5F9;
+            font-size: 12px;
+        }
+        td:first-child { text-align: center; color: #94A3B8; font-weight: 500; }
+        td:nth-child(2) {
+            max-width: 500px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #334155;
+            font-family: 'Menlo', 'Consolas', monospace;
+            font-size: 11px;
+        }
+        td:nth-child(3) {
+            text-align: right;
+            font-family: 'Menlo', 'Consolas', monospace;
+            font-weight: 500;
+        }
+        td:nth-child(4) { text-align: center; }
+
+        .status-success { color: #16A34A; font-weight: 500; font-size: 12px; }
+        .status-fail { color: #DC2626; font-weight: 500; font-size: 12px; }
+
+        /* 空状态 */
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: #94A3B8;
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+        /* Spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 640px) {
+            .summary-bar { grid-template-columns: repeat(2, 1fr); }
+            .container { padding: 16px 12px 32px; }
+            .upload-section { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>URL 文件大小计算器</h1>
+        <p>上传包含 URL 的文件，快速获取所有文件大小（无需下载）</p>
+    </div>
+
+    <div class="container">
+        <!-- 上传区域 -->
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">点击选择文件或将文件拖拽到此处</div>
+                <div class="file-hint">支持 .xlsx、.xls、.txt 格式</div>
+                <div class="file-name" id="fileName"></div>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.txt">
+
+            <div class="action-bar" id="actionBar" style="display:none;">
+                <div class="url-count">
+                    已解析 <span id="urlCount">0</span> 个有效URL
+                </div>
+                <button class="btn btn-secondary" id="btnReset" onclick="resetAll()">重新选择</button>
+                <button class="btn btn-primary" id="btnExecute" onclick="executeCheck()">
+                    开始检测
+                </button>
+            </div>
+        </div>
+
+        <!-- 进度条 -->
+        <div class="progress-section" id="progressSection">
+            <div class="progress-header">
+                <span class="progress-label" id="progressLabel">正在检测文件大小...</span>
+                <span class="progress-percent" id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- 结果区域 -->
+        <div class="result-section" id="resultSection">
+            <div class="total-banner">
+                <div class="total-banner-left">
+                    <div class="total-banner-label">文件大小合计</div>
+                    <div class="total-banner-value" id="bannerTotalSize">0 B</div>
+                </div>
+                <button class="btn-download" id="btnDownload" onclick="downloadExcel()">
+                    ⬇ 下载 Excel 报告
+                </button>
+            </div>
+            <div class="summary-bar" id="summaryBar">
+                <div class="stat-card stat-total">
+                    <div class="stat-value" id="statTotal">0</div>
+                    <div class="stat-label">文件总数</div>
+                </div>
+                <div class="stat-card stat-success">
+                    <div class="stat-value" id="statSuccess">0</div>
+                    <div class="stat-label">成功获取</div>
+                </div>
+                <div class="stat-card stat-fail">
+                    <div class="stat-value" id="statFail">0</div>
+                    <div class="stat-label">获取失败</div>
+                </div>
+                <div class="stat-card stat-size">
+                    <div class="stat-value" id="statSize">0 B</div>
+                    <div class="stat-label">文件总大小</div>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>序号</th>
+                            <th>文件 URL</th>
+                            <th>文件大小</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let parsedUrls = [];
+    let lastData = null;
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const actionBar = document.getElementById('actionBar');
+    const urlCountEl = document.getElementById('urlCount');
+
+    // 点击上传
+    uploadArea.addEventListener('click', () => {
+        if (!document.getElementById('btnExecute').disabled) {
+            fileInput.click();
+        }
+    });
+
+    // 拖拽
+    uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+    uploadArea.addEventListener('drop', e => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) handleFile(fileInput.files[0]);
+    });
+
+    async function handleFile(file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['xlsx', 'xls', 'txt'].includes(ext)) {
+            alert('不支持的文件格式，请上传 .xlsx、.xls 或 .txt 文件');
+            return;
+        }
+
+        fileName.textContent = '上传中...';
+        uploadArea.classList.add('has-file');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const resp = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                alert(data.error || '上传失败');
+                resetUploadUI();
+                return;
+            }
+
+            parsedUrls = data.urls;
+            fileName.textContent = `${file.name}`;
+            urlCountEl.textContent = data.count;
+            actionBar.style.display = 'flex';
+
+        } catch (err) {
+            alert('上传失败: ' + err.message);
+            resetUploadUI();
+        }
+    }
+
+    function resetUploadUI() {
+        uploadArea.classList.remove('has-file');
+        fileName.textContent = '';
+        actionBar.style.display = 'none';
+        parsedUrls = [];
+        fileInput.value = '';
+    }
+
+    function resetAll() {
+        resetUploadUI();
+        document.getElementById('progressSection').classList.remove('show');
+        document.getElementById('resultSection').classList.remove('show');
+        document.getElementById('resultBody').innerHTML = '';
+        document.getElementById('btnExecute').disabled = false;
+    }
+
+    async function executeCheck() {
+        if (!parsedUrls.length) return;
+
+        const btnExec = document.getElementById('btnExecute');
+        const btnReset = document.getElementById('btnReset');
+        btnExec.disabled = true;
+        btnReset.disabled = true;
+        btnExec.innerHTML = '<span class="spinner"></span> 检测中...';
+
+        const progressSection = document.getElementById('progressSection');
+        const progressFill = document.getElementById('progressFill');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressLabel = document.getElementById('progressLabel');
+        progressSection.classList.add('show');
+        progressFill.style.width = '0%';
+        progressPercent.textContent = '0%';
+        progressLabel.textContent = `正在检测 ${parsedUrls.length} 个URL的文件大小...`;
+
+        // 模拟进度（因为后端是批量返回的）
+        let fakeProgress = 0;
+        const progressTimer = setInterval(() => {
+            if (fakeProgress < 90) {
+                fakeProgress += Math.random() * 8;
+                if (fakeProgress > 90) fakeProgress = 90;
+                progressFill.style.width = fakeProgress + '%';
+                progressPercent.textContent = Math.round(fakeProgress) + '%';
+            }
+        }, 300);
+
+        try {
+            const resp = await fetch('/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ urls: parsedUrls })
+            });
+            const data = await resp.json();
+
+            clearInterval(progressTimer);
+            progressFill.style.width = '100%';
+            progressPercent.textContent = '100%';
+            progressLabel.textContent = '检测完成！';
+
+            if (!resp.ok) {
+                alert(data.error || '检测失败');
+                return;
+            }
+
+            renderResults(data);
+
+        } catch (err) {
+            clearInterval(progressTimer);
+            alert('检测失败: ' + err.message);
+        } finally {
+            btnExec.innerHTML = '开始检测';
+            btnExec.disabled = false;
+            btnReset.disabled = false;
+        }
+    }
+
+    function renderResults(data) {
+        lastData = data;
+        const resultSection = document.getElementById('resultSection');
+        resultSection.classList.add('show');
+
+        const s = data.summary;
+        document.getElementById('bannerTotalSize').textContent = s.total_size_formatted;
+        document.getElementById('statTotal').textContent = s.total;
+        document.getElementById('statSuccess').textContent = s.success;
+        document.getElementById('statFail').textContent = s.fail;
+        document.getElementById('statSize').textContent = s.total_size_formatted;
+
+        const tbody = document.getElementById('resultBody');
+        tbody.innerHTML = '';
+
+        data.results.forEach((r, i) => {
+            const isSuccess = r.status === 'success';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${i + 1}</td>
+                <td title="${escapeHtml(r.url)}">${escapeHtml(r.url)}</td>
+                <td>${r.size_formatted}</td>
+                <td class="${isSuccess ? 'status-success' : 'status-fail'}">${escapeHtml(r.status_text)}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function escapeHtml(text) {
+        const d = document.createElement('div');
+        d.textContent = text;
+        return d.innerHTML;
+    }
+
+    async function downloadExcel() {
+        if (!lastData) return;
+        const btn = document.getElementById('btnDownload');
+        btn.textContent = '⏳ 生成中...';
+        btn.disabled = true;
+
+        try {
+            const resp = await fetch('/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ results: lastData.results, summary: lastData.summary })
+            });
+
+            if (!resp.ok) {
+                alert('下载失败');
+                return;
+            }
+
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '文件大小检测结果.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            alert('下载失败: ' + err.message);
+        } finally {
+            btn.innerHTML = '⬇ 下载 Excel 报告';
+            btn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>
