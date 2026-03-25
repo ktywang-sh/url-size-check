@@ -302,7 +302,7 @@ def download():
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
-        download_name='url_size_check_result.xlsx'
+        download_name='urlsizecheckresult.xlsx'
     )
 
 
